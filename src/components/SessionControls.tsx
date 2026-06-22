@@ -17,6 +17,7 @@ import {
   PackagePlus,
   Pause,
   Play,
+  Save,
   Square,
 } from 'lucide-react';
 import type { SessionStatus } from '../types/timer.types';
@@ -32,6 +33,9 @@ export interface SessionControlsProps {
   readonly onPauseSession: () => void;
   readonly onResumeSession: () => void;
   readonly onEndSession: () => void;
+  readonly onSaveSession: () => void;
+  readonly isCurrentSessionSaved: boolean;
+  readonly savedSessionLabel: string | null;
 }
 
 interface ControlActionProps {
@@ -109,6 +113,9 @@ export function SessionControls({
   onPauseSession,
   onResumeSession,
   onEndSession,
+  onSaveSession,
+  isCurrentSessionSaved,
+  savedSessionLabel,
 }: SessionControlsProps): React.JSX.Element {
   const isIdle = status === 'idle';
   const isFinished = status === 'finished';
@@ -196,21 +203,42 @@ export function SessionControls({
         )}
 
         {isFinished && (
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-950/50 sm:p-5">
+          <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/50 sm:p-5">
             <p className="flex items-center justify-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
               <Flag className="h-4 w-4 shrink-0 text-rose-500" aria-hidden="true" />
               Sesión finalizada. Los datos quedan congelados para consulta.
             </p>
-            <Button
-              variant="outline"
-              size="lg"
-              fullWidth
-              className="mt-4"
-              onClick={onStartSession}
-              leadingIcon={<Play className="h-5 w-5" />}
-            >
-              Nueva sesión
-            </Button>
+
+            {isCurrentSessionSaved && savedSessionLabel !== null && (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300">
+                Guardada como &quot;{savedSessionLabel}&quot;
+              </p>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {!isCurrentSessionSaved && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={onSaveSession}
+                  leadingIcon={<Save className="h-5 w-5" />}
+                >
+                  Guardar sesión
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="lg"
+                fullWidth
+                className={isCurrentSessionSaved ? 'sm:col-span-2' : ''}
+                onClick={onStartSession}
+                leadingIcon={<Play className="h-5 w-5" />}
+              >
+                Nueva sesión
+              </Button>
+            </div>
           </div>
         )}
       </div>

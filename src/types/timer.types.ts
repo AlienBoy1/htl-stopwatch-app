@@ -59,3 +59,25 @@ export interface SessionSummary {
   readonly totalCycles: number;
   readonly totalBoxes: number;
 }
+
+/**
+ * Sesión de cronometraje persistida en el almacenamiento local de la PWA.
+ * Incluye historial de ciclos y resumen al momento de guardar.
+ */
+export interface SavedSession {
+  readonly id: string;
+  /** Número secuencial global de la sesión guardada (base 1). */
+  readonly sessionNumber: number;
+  /** Nombre visible: personalizado o "Sesión #N" por defecto. */
+  readonly name: string;
+  readonly savedAt: string;
+  readonly cycles: readonly CycleRecord[];
+  readonly summary: SessionSummary;
+}
+
+/** Datos necesarios para persistir una sesión recién finalizada. */
+export interface SaveSessionPayload {
+  readonly customName: string;
+  readonly cycles: readonly CycleRecord[];
+  readonly totalSessionTimeMs: number;
+}

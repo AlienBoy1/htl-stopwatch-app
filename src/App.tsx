@@ -7,7 +7,7 @@
  * Responsabilidades:
  * - Conectar useTimer con componentes de UI especializados.
  * - Gestionar el formulario de captura de cajas tras registrar un ciclo.
- * - Exponer controles industriales de inicio, pausa, reanudación, registro y finalización.
+ * - Coordinar el guardado persistente de sesiones finalizadas en localStorage.
  *
  * Rol en la arquitectura: Capa de composición / página principal de la PWA.
  */
@@ -16,10 +16,13 @@ import { useCallback, useState, type FormEvent } from 'react';
 import { PackagePlus } from 'lucide-react';
 import { AppLogo } from './components/AppLogo';
 import { CycleHistoryTable } from './components/CycleHistoryTable';
+import { SavedSessionsPanel } from './components/SavedSessionsPanel';
+import { SaveSessionDialog } from './components/SaveSessionDialog';
 import { SessionControls } from './components/SessionControls';
 import { StopwatchDisplay } from './components/StopwatchDisplay';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Button } from './components/ui/Button';
+import { useSavedSessions } from './hooks/useSavedSessions';
 import { useTimer } from './hooks/useTimer';
 import { formatTableTime } from './utils/timeFormatter';
 
@@ -40,7 +43,12 @@ export default function App(): React.JSX.Element {
     isPaused,
   } = useTimer();
 
+  const { savedSessions, saveSession } = useSavedSessions();
+
   const [boxInput, setBoxInput] = useState('');
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isCurrentSessionSaved, setIsCurrentSessionSaved] = useState(false);
+  const [savedSessionLabel, setSavedSessionLabel] = useState<string | null>(null);
 
   /**
    * Reinicia el campo de cajas cuando aparece un nuevo ciclo pendiente,
@@ -50,6 +58,41 @@ export default function App(): React.JSX.Element {
     registerCycle();
     setBoxInput('');
   }, [registerCycle]);
+
+  /**
+   * Inicia una nueva sesión y limpia el estado de guardado de la sesión anterior.
+   */
+  const handleStartSession = useCallback((): void => {
+    startSession();
+    setIsCurrentSessionSaved(false);
+    setSavedSessionLabel(null);
+    setIsSaveDialogOpen(false);
+  }, [startSession]);
+
+  /**
+   * Abre el diálogo para nombrar y persistir la sesión finalizada actual.
+   */
+  const handleOpenSaveDialog = useCallback((): void => {
+    setIsSaveDialogOpen(true);
+  }, []);
+
+  /**
+   * Confirma el guardado aplicando nombre personalizado o numeración automática.
+   */
+  const handleConfirmSaveSession = useCallback(
+    (customName: string): void => {
+      const saved = saveSession({
+        customName,
+        cycles,
+        totalSessionTimeMs: generalElapsedMs,
+      });
+
+      setIsCurrentSessionSaved(true);
+      setSavedSessionLabel(saved.name);
+      setIsSaveDialogOpen(false);
+    },
+    [saveSession, cycles, generalElapsedMs],
+  );
 
   /**
    * Valida y envía la cantidad de cajas al hook de dominio.
@@ -106,11 +149,14 @@ export default function App(): React.JSX.Element {
             isSessionActive={isSessionActive}
             isPaused={isPaused}
             hasPendingCycle={hasPendingCycle}
-            onStartSession={startSession}
+            onStartSession={handleStartSession}
             onRegisterCycle={handleRegisterCycle}
             onPauseSession={pauseSession}
             onResumeSession={resumeSession}
             onEndSession={endSession}
+            onSaveSession={handleOpenSaveDialog}
+            isCurrentSessionSaved={isCurrentSessionSaved}
+            savedSessionLabel={savedSessionLabel}
           />
 
           {/* Formulario de captura de cajas visible solo tras registrar un ciclo */}
@@ -174,12 +220,21 @@ export default function App(): React.JSX.Element {
             isSessionFinished={isFinished}
             totalSessionTimeMs={generalElapsedMs}
           />
+
+          <SavedSessionsPanel sessions={savedSessions} />
         </main>
 
         <footer className="border-t border-zinc-200 pt-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-600">
-          HTL StopWatch PWA — Funciona sin conexión - Developed By AlienBoy1 
+          HTL StopWatch PWA — Funciona sin conexión - Developed By AlienBoy1
         </footer>
       </div>
+
+      <SaveSessionDialog
+        isOpen={isSaveDialogOpen}
+        existingSessionCount={savedSessions.length}
+        onClose={() => setIsSaveDialogOpen(false)}
+        onConfirm={handleConfirmSaveSession}
+      />
     </div>
   );
 }
