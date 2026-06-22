@@ -7,6 +7,7 @@
  * - Cargar sesiones desde localStorage al montar.
  * - Guardar nuevas sesiones con numeración y nombre resueltos.
  * - Exponer el listado ordenado para la interfaz.
+ * - Eliminar sesiones individuales o el historial completo persistido.
  *
  * Rol en la arquitectura: Capa de lógica de aplicación para persistencia de sesiones.
  */
@@ -23,6 +24,8 @@ import { buildSessionSummary } from '../utils/sessionSummary';
 export interface UseSavedSessionsReturn {
   readonly savedSessions: readonly SavedSession[];
   readonly saveSession: (payload: SaveSessionPayload) => SavedSession;
+  readonly deleteSession: (sessionId: string) => void;
+  readonly deleteAllSessions: () => void;
 }
 
 export function useSavedSessions(): UseSavedSessionsReturn {
@@ -62,8 +65,32 @@ export function useSavedSessions(): UseSavedSessionsReturn {
     [savedSessions],
   );
 
+  /**
+   * Elimina una sesión guardada por su identificador único.
+   */
+  const deleteSession = useCallback(
+    (sessionId: string): void => {
+      const updatedSessions = savedSessions.filter(
+        (session) => session.id !== sessionId,
+      );
+      setSavedSessions(updatedSessions);
+      persistSavedSessions(updatedSessions);
+    },
+    [savedSessions],
+  );
+
+  /**
+   * Vacía por completo el historial de sesiones en memoria y localStorage.
+   */
+  const deleteAllSessions = useCallback((): void => {
+    setSavedSessions([]);
+    persistSavedSessions([]);
+  }, []);
+
   return {
     savedSessions,
     saveSession,
+    deleteSession,
+    deleteAllSessions,
   };
 }

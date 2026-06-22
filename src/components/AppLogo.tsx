@@ -27,7 +27,7 @@ export interface AppLogoProps {
 
 /** Mapa de clases Tailwind por tamaño de imagen. */
 const SIZE_CLASSES: Record<AppLogoSize, string> = {
-  sm: 'h-10 w-10',
+  sm: 'h-9 w-9 sm:h-10 sm:w-10',
   md: 'h-14 w-14 sm:h-16 sm:w-16',
   lg: 'h-20 w-20',
   xl: 'h-28 w-28 sm:h-32 sm:w-32',
@@ -39,7 +39,7 @@ export function AppLogo({
   className = '',
 }: AppLogoProps): React.JSX.Element {
   const frameClass = showFrame
-    ? 'rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-lg shadow-emerald-500/10 dark:border-zinc-800 dark:bg-zinc-900/80'
+    ? 'rounded-xl border border-zinc-200/90 bg-white p-1 shadow-sm shadow-emerald-500/5 dark:border-zinc-700/90 dark:bg-zinc-900/90'
     : '';
 
   return (

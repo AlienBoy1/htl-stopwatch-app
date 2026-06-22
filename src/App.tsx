@@ -14,17 +14,26 @@
 
 import { useCallback, useState, type FormEvent } from 'react';
 import { PackagePlus } from 'lucide-react';
-import { AppLogo } from './components/AppLogo';
+import { AppNavbar } from './components/AppNavbar';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { CycleHistoryTable } from './components/CycleHistoryTable';
 import { SavedSessionsPanel } from './components/SavedSessionsPanel';
 import { SaveSessionDialog } from './components/SaveSessionDialog';
 import { SessionControls } from './components/SessionControls';
 import { StopwatchDisplay } from './components/StopwatchDisplay';
-import { ThemeToggle } from './components/ThemeToggle';
 import { Button } from './components/ui/Button';
 import { useSavedSessions } from './hooks/useSavedSessions';
 import { useTimer } from './hooks/useTimer';
 import { formatTableTime } from './utils/timeFormatter';
+
+/** Solicitud pendiente de confirmación para eliminar sesiones guardadas. */
+type DeleteConfirmRequest =
+  | {
+      readonly kind: 'single';
+      readonly sessionId: string;
+      readonly sessionName: string;
+    }
+  | { readonly kind: 'all' };
 
 export default function App(): React.JSX.Element {
   const {
@@ -43,12 +52,15 @@ export default function App(): React.JSX.Element {
     isPaused,
   } = useTimer();
 
-  const { savedSessions, saveSession } = useSavedSessions();
+  const { savedSessions, saveSession, deleteSession, deleteAllSessions } =
+    useSavedSessions();
 
   const [boxInput, setBoxInput] = useState('');
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isCurrentSessionSaved, setIsCurrentSessionSaved] = useState(false);
   const [savedSessionLabel, setSavedSessionLabel] = useState<string | null>(null);
+  const [deleteConfirmRequest, setDeleteConfirmRequest] =
+    useState<DeleteConfirmRequest | null>(null);
 
   /**
    * Reinicia el campo de cajas cuando aparece un nuevo ciclo pendiente,
@@ -95,6 +107,61 @@ export default function App(): React.JSX.Element {
   );
 
   /**
+   * Abre el diálogo interno para confirmar la eliminación de una sesión.
+   */
+  const handleDeleteSession = useCallback(
+    (sessionId: string): void => {
+      const session = savedSessions.find((item) => item.id === sessionId);
+      if (session === undefined) {
+        return;
+      }
+
+      setDeleteConfirmRequest({
+        kind: 'single',
+        sessionId,
+        sessionName: session.name,
+      });
+    },
+    [savedSessions],
+  );
+
+  /**
+   * Abre el diálogo interno para confirmar el borrado de todas las sesiones.
+   */
+  const handleDeleteAllSessions = useCallback((): void => {
+    setDeleteConfirmRequest({ kind: 'all' });
+  }, []);
+
+  /**
+   * Ejecuta la eliminación confirmada desde el diálogo de la aplicación.
+   */
+  const handleConfirmDelete = useCallback((): void => {
+    if (deleteConfirmRequest === null) {
+      return;
+    }
+
+    if (deleteConfirmRequest.kind === 'single') {
+      deleteSession(deleteConfirmRequest.sessionId);
+    } else {
+      deleteAllSessions();
+    }
+
+    setDeleteConfirmRequest(null);
+  }, [deleteConfirmRequest, deleteSession, deleteAllSessions]);
+
+  const deleteDialogTitle =
+    deleteConfirmRequest?.kind === 'all'
+      ? 'Eliminar todas las sesiones'
+      : 'Eliminar sesión';
+
+  const deleteDialogMessage =
+    deleteConfirmRequest?.kind === 'all'
+      ? 'Se borrarán permanentemente todas las sesiones guardadas en este dispositivo. Esta acción no se puede deshacer.'
+      : deleteConfirmRequest?.kind === 'single'
+        ? `Se eliminará permanentemente la sesión "${deleteConfirmRequest.sessionName}". Esta acción no se puede deshacer.`
+        : '';
+
+  /**
    * Valida y envía la cantidad de cajas al hook de dominio.
    * Solo acepta enteros no negativos para mantener coherencia operativa.
    */
@@ -118,27 +185,19 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-        {/* Cabecera con logo corporativo, toggle de tema e identificación industrial */}
-        <header className="flex items-start gap-4 border-b border-zinc-200 pb-5 dark:border-zinc-800 sm:items-center sm:gap-5">
-          <AppLogo size="md" />
+      <AppNavbar />
 
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              HTL Electronics
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50 sm:text-3xl">
+      <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:min-h-[calc(100dvh-4.25rem)] sm:gap-6 sm:px-6 sm:py-6">
+        <main className="flex flex-1 flex-col gap-5 sm:gap-6">
+          <div className="px-0.5">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 sm:text-2xl">
               Cronómetro
             </h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 sm:mt-2">
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Medición de ciclos de trabajo
             </p>
           </div>
 
-          <ThemeToggle />
-        </header>
-
-        <main className="flex flex-1 flex-col gap-5 sm:gap-6">
           <StopwatchDisplay
             values={{ generalElapsedMs, cycleElapsedMs }}
             status={status}
@@ -221,7 +280,11 @@ export default function App(): React.JSX.Element {
             totalSessionTimeMs={generalElapsedMs}
           />
 
-          <SavedSessionsPanel sessions={savedSessions} />
+          <SavedSessionsPanel
+            sessions={savedSessions}
+            onDeleteSession={handleDeleteSession}
+            onDeleteAllSessions={handleDeleteAllSessions}
+          />
         </main>
 
         <footer className="border-t border-zinc-200 pt-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-600">
@@ -234,6 +297,17 @@ export default function App(): React.JSX.Element {
         existingSessionCount={savedSessions.length}
         onClose={() => setIsSaveDialogOpen(false)}
         onConfirm={handleConfirmSaveSession}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmRequest !== null}
+        title={deleteDialogTitle}
+        message={deleteDialogMessage}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onClose={() => setDeleteConfirmRequest(null)}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

@@ -29,12 +29,12 @@ export function ThemeToggle(): React.JSX.Element {
       aria-pressed={isDark}
       title={label}
       className={[
-        'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-xl',
-        'border border-zinc-300 bg-zinc-100 text-zinc-700',
+        'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl sm:min-h-12 sm:min-w-12',
+        'border border-zinc-200/90 bg-zinc-50 text-zinc-700',
         'transition-colors duration-150',
-        'hover:bg-zinc-200 active:bg-zinc-300',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50',
-        'dark:border-zinc-700 dark:bg-zinc-900 dark:text-amber-300',
+        'hover:bg-zinc-100 active:bg-zinc-200',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'dark:border-zinc-700/90 dark:bg-zinc-900/90 dark:text-amber-300',
         'dark:hover:bg-zinc-800 dark:active:bg-zinc-700',
         'dark:focus-visible:ring-offset-zinc-950',
       ].join(' ')}
