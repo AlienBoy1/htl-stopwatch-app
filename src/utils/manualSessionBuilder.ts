@@ -18,12 +18,13 @@ import type {
   ManualSessionTotals,
   ManualSessionValidation,
 } from '../types/manualSession.types';
+import { MANUAL_CYCLE_TIME_DEFAULT } from './manualCycleTimeInput';
 
-/** Crea un borrador vacío con identificador único. */
+/** Crea un borrador con plantilla de tiempo precargada (00:00.00). */
 export function createManualCycleDraft(): ManualCycleDraft {
   return {
     id: crypto.randomUUID(),
-    cycleTimeInput: '',
+    cycleTimeInput: MANUAL_CYCLE_TIME_DEFAULT,
     boxCountInput: '',
   };
 }
@@ -143,7 +144,7 @@ export function validateManualSessionDrafts(
     const boxCount = parseBoxCountInput(draft.boxCountInput);
     const fieldErrors: ManualCycleFieldErrors = {
       ...(cycleTimeMs === null || cycleTimeMs <= 0
-        ? { cycleTime: 'Introduce un tiempo válido (ej. 02:35.40).' }
+        ? { cycleTime: 'Introduce un tiempo mayor a 00:00.00 (Min : Seg . Cs).' }
         : {}),
       ...(boxCount === null
         ? { boxCount: 'Introduce un número entero de cajas (0 o más).' }

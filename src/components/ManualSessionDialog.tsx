@@ -38,6 +38,7 @@ import {
 import { resolveSessionName } from '../utils/sessionNaming';
 import { formatElapsedTime } from '../utils/timeFormatter';
 import { Button } from './ui/Button';
+import { ManualCycleTimeInput } from './ManualCycleTimeInput';
 
 type ManualDialogMode = 'editing' | 'saving' | 'success';
 
@@ -110,30 +111,19 @@ function ManualCycleRow({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label
-            htmlFor={`manual-cycle-time-${draft.id}`}
+            htmlFor={`manual-cycle-time-minutes-${draft.id}`}
             className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500"
           >
             Tiempo de ciclo
           </label>
-          <input
+          <ManualCycleTimeInput
             id={`manual-cycle-time-${draft.id}`}
-            type="text"
-            inputMode="decimal"
             value={draft.cycleTimeInput}
             disabled={isDisabled}
-            onChange={(event) =>
-              onChange(draft.id, 'cycleTimeInput', event.target.value)
+            hasError={cycleTimeError !== undefined}
+            onChange={(nextValue) =>
+              onChange(draft.id, 'cycleTimeInput', nextValue)
             }
-            placeholder="02:35.40"
-            className={[
-              'min-h-12 w-full rounded-xl border bg-white px-3 font-mono text-sm font-semibold',
-              'transition-colors duration-200 focus:outline-none focus:ring-2',
-              'disabled:cursor-not-allowed disabled:opacity-60',
-              'dark:bg-zinc-950 dark:text-zinc-50',
-              cycleTimeError === undefined
-                ? 'border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500/30 dark:border-zinc-700'
-                : 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/30 dark:border-rose-500/50',
-            ].join(' ')}
           />
           {cycleTimeError !== undefined && (
             <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
