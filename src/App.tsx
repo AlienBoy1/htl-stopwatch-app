@@ -24,7 +24,12 @@ import { StopwatchDisplay } from './components/StopwatchDisplay';
 import { Button } from './components/ui/Button';
 import { useSavedSessions } from './hooks/useSavedSessions';
 import { useTimer } from './hooks/useTimer';
+import {
+  downloadSessionsPdfReport,
+  openSessionsPdfReport,
+} from './utils/exportCyclesPdf';
 import { formatTableTime } from './utils/timeFormatter';
+import type { SavedSession } from './types/timer.types';
 
 /** Solicitud pendiente de confirmación para eliminar sesiones guardadas. */
 type DeleteConfirmRequest =
@@ -148,6 +153,26 @@ export default function App(): React.JSX.Element {
 
     setDeleteConfirmRequest(null);
   }, [deleteConfirmRequest, deleteSession, deleteAllSessions]);
+
+  /**
+   * Abre el reporte PDF de las sesiones seleccionadas en una pestaña nueva.
+   */
+  const handleOpenSessionsPdf = useCallback(
+    async (sessionsToOpen: readonly SavedSession[]): Promise<void> => {
+      await openSessionsPdfReport(sessionsToOpen);
+    },
+    [],
+  );
+
+  /**
+   * Descarga el reporte PDF de las sesiones seleccionadas.
+   */
+  const handleDownloadSessionsPdf = useCallback(
+    async (sessionsToDownload: readonly SavedSession[]): Promise<void> => {
+      await downloadSessionsPdfReport(sessionsToDownload);
+    },
+    [],
+  );
 
   const deleteDialogTitle =
     deleteConfirmRequest?.kind === 'all'
@@ -284,6 +309,8 @@ export default function App(): React.JSX.Element {
             sessions={savedSessions}
             onDeleteSession={handleDeleteSession}
             onDeleteAllSessions={handleDeleteAllSessions}
+            onOpenSessionsPdf={handleOpenSessionsPdf}
+            onDownloadSessionsPdf={handleDownloadSessionsPdf}
           />
         </main>
 

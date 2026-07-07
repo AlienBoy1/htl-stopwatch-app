@@ -5,25 +5,37 @@
  *
  * Responsabilidades:
  * - Renderizar nombre, fecha y totales de cada sesión persistida.
- * - Permitir expandir el detalle de ciclos de una sesión guardada.
- * - Ofrecer eliminación individual o total sin acceder al localStorage del navegador.
+ * - Permitir selección múltiple para abrir o descargar reportes PDF de ciclos.
+ * - Gestionar eliminación individual o total sin acceder al localStorage del navegador.
  *
  * Rol en la arquitectura: Componente de consulta y gestión de historial persistido.
  */
 
-import { useState } from 'react';
-import { Archive, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  FileDown,
+  Trash2,
+} from 'lucide-react';
 import type { SavedSession } from '../types/timer.types';
 import { formatElapsedTime, formatTableTime } from '../utils/timeFormatter';
+import { Button } from './ui/Button';
 
 export interface SavedSessionsPanelProps {
   readonly sessions: readonly SavedSession[];
   readonly onDeleteSession: (sessionId: string) => void;
   readonly onDeleteAllSessions: () => void;
+  readonly onOpenSessionsPdf: (sessions: readonly SavedSession[]) => Promise<void>;
+  readonly onDownloadSessionsPdf: (sessions: readonly SavedSession[]) => Promise<void>;
 }
 
 interface SavedSessionCardProps {
   readonly session: SavedSession;
+  readonly isSelected: boolean;
+  readonly onToggleSelect: (sessionId: string) => void;
   readonly onDelete: (sessionId: string) => void;
 }
 
@@ -43,6 +55,7 @@ interface IconButtonProps {
   readonly label: string;
   readonly onClick: () => void;
   readonly className?: string;
+  readonly disabled?: boolean;
   readonly children: React.ReactNode;
 }
 
@@ -53,18 +66,21 @@ function IconButton({
   label,
   onClick,
   className = '',
+  disabled = false,
   children,
 }: IconButtonProps): React.JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       className={[
         'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
         'transition-colors duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50',
+        'disabled:cursor-not-allowed disabled:opacity-40',
         className,
       ].join(' ')}
     >
@@ -74,21 +90,44 @@ function IconButton({
 }
 
 /**
- * Tarjeta expandible con resumen, detalle de ciclos y opción de eliminación.
+ * Tarjeta expandible con selección, resumen, detalle de ciclos y eliminación.
  */
 function SavedSessionCard({
   session,
+  isSelected,
+  onToggleSelect,
   onDelete,
 }: SavedSessionCardProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleToggleSelect = (): void => {
+    onToggleSelect(session.id);
+  };
 
   const handleDelete = (): void => {
     onDelete(session.id);
   };
 
   return (
-    <li className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
+    <li
+      className={[
+        'overflow-hidden rounded-2xl border bg-white dark:bg-zinc-900/60',
+        isSelected
+          ? 'border-emerald-400 ring-1 ring-emerald-400/40 dark:border-emerald-500/60'
+          : 'border-zinc-200 dark:border-zinc-800',
+      ].join(' ')}
+    >
       <div className="flex items-start gap-1 p-2 sm:gap-2 sm:p-3">
+        <label className="flex shrink-0 cursor-pointer items-center p-2 sm:p-3">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={handleToggleSelect}
+            aria-label={`Seleccionar sesión ${session.name} para exportar`}
+            className="h-5 w-5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-900"
+          />
+        </label>
+
         <button
           type="button"
           onClick={() => setIsExpanded((previous) => !previous)}
@@ -177,15 +216,84 @@ export function SavedSessionsPanel({
   sessions,
   onDeleteSession,
   onDeleteAllSessions,
+  onOpenSessionsPdf,
+  onDownloadSessionsPdf,
 }: SavedSessionsPanelProps): React.JSX.Element {
   const hasSessions = sessions.length > 0;
+  const [selectedSessionIds, setSelectedSessionIds] = useState<readonly string[]>(
+    [],
+  );
+  const [isPdfBusy, setIsPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const selectedSessions = useMemo(
+    () => sessions.filter((session) => selectedSessionIds.includes(session.id)),
+    [sessions, selectedSessionIds],
+  );
+
+  const allSelected =
+    hasSessions && selectedSessionIds.length === sessions.length;
+  const hasSelection = selectedSessionIds.length > 0;
+
+  const handleToggleSelect = useCallback((sessionId: string): void => {
+    setSelectedSessionIds((previous) =>
+      previous.includes(sessionId)
+        ? previous.filter((id) => id !== sessionId)
+        : [...previous, sessionId],
+    );
+  }, []);
+
+  const handleToggleSelectAll = useCallback((): void => {
+    setSelectedSessionIds((previous) =>
+      previous.length === sessions.length
+        ? []
+        : sessions.map((session) => session.id),
+    );
+  }, [sessions]);
+
+  /**
+   * Genera el PDF y lo abre o descarga según la acción elegida.
+   */
+  const handlePdfAction = useCallback(
+    async (action: 'open' | 'download'): Promise<void> => {
+      if (selectedSessions.length === 0 || isPdfBusy) {
+        return;
+      }
+
+      setIsPdfBusy(true);
+      setPdfError(null);
+
+      try {
+        if (action === 'open') {
+          await onOpenSessionsPdf(selectedSessions);
+        } else {
+          await onDownloadSessionsPdf(selectedSessions);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message === 'POPUP_BLOCKED') {
+          setPdfError(
+            'El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e inténtalo de nuevo.',
+          );
+        } else {
+          setPdfError(
+            'No se pudo generar el PDF. Verifica la plantilla e inténtalo de nuevo.',
+          );
+        }
+      } finally {
+        setIsPdfBusy(false);
+      }
+    },
+    [selectedSessions, isPdfBusy, onOpenSessionsPdf, onDownloadSessionsPdf],
+  );
+
+  const selectionLabel = `(${selectedSessionIds.length})`;
 
   return (
     <section
       className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:shadow-none"
       aria-label="Sesiones guardadas"
     >
-      <header className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40 sm:px-6">
+      <header className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40 sm:px-6">
         <Archive className="h-5 w-5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
         <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
           Sesiones guardadas
@@ -193,9 +301,17 @@ export function SavedSessionsPanel({
 
         {hasSessions && (
           <>
-            <span className="ml-auto rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <span className="rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {sessions.length}
             </span>
+
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className="ml-auto text-xs font-semibold text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+            </button>
 
             <IconButton
               label="Eliminar todas las sesiones guardadas"
@@ -215,15 +331,59 @@ export function SavedSessionsPanel({
             &quot;Guardar sesión&quot;.
           </p>
         ) : (
-          <ul className="space-y-3">
-            {[...sessions].reverse().map((session) => (
-              <SavedSessionCard
-                key={session.id}
-                session={session}
-                onDelete={onDeleteSession}
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="space-y-3">
+              {[...sessions].reverse().map((session) => (
+                <SavedSessionCard
+                  key={session.id}
+                  session={session}
+                  isSelected={selectedSessionIds.includes(session.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onDelete={onDeleteSession}
+                />
+              ))}
+            </ul>
+
+            <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              {pdfError !== null && (
+                <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-300">
+                  {pdfError}
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  fullWidth
+                  disabled={!hasSelection || isPdfBusy}
+                  leadingIcon={<ExternalLink className="h-5 w-5" />}
+                  onClick={() => {
+                    void handlePdfAction('open');
+                  }}
+                >
+                  {isPdfBusy
+                    ? 'Generando PDF…'
+                    : `Abrir PDF en navegador ${selectionLabel}`}
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  disabled={!hasSelection || isPdfBusy}
+                  leadingIcon={<FileDown className="h-5 w-5" />}
+                  onClick={() => {
+                    void handlePdfAction('download');
+                  }}
+                >
+                  {isPdfBusy
+                    ? 'Generando PDF…'
+                    : `Descargar PDF ${selectionLabel}`}
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </section>

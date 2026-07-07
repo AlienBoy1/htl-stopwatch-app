@@ -22,7 +22,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/htl_stopwatch_icon.png', 'icons/*.png'],
+      includeAssets: [
+        'icons/htl_stopwatch_icon.png',
+        'icons/*.png',
+        'templates/*.pdf',
+      ],
       strategies: 'generateSW',
       manifest: {
         name: 'HTL StopWatch — Cronómetro de Paletizado',
@@ -64,7 +68,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,pdf}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
