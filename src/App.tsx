@@ -29,7 +29,7 @@ import {
   openSessionsPdfReport,
 } from './utils/exportCyclesPdf';
 import { formatTableTime } from './utils/timeFormatter';
-import type { SavedSession } from './types/timer.types';
+import type { SavedSession, SaveSessionPayload } from './types/timer.types';
 
 /** Solicitud pendiente de confirmación para eliminar sesiones guardadas. */
 type DeleteConfirmRequest =
@@ -57,7 +57,7 @@ export default function App(): React.JSX.Element {
     isPaused,
   } = useTimer();
 
-  const { savedSessions, saveSession, deleteSession, deleteAllSessions } =
+  const { savedSessions, saveSession, saveManualSession, renameSession, deleteSession, deleteAllSessions } =
     useSavedSessions();
 
   const [boxInput, setBoxInput] = useState('');
@@ -153,6 +153,26 @@ export default function App(): React.JSX.Element {
 
     setDeleteConfirmRequest(null);
   }, [deleteConfirmRequest, deleteSession, deleteAllSessions]);
+
+  /**
+   * Persiste una sesión registrada manualmente desde el formulario dedicado.
+   */
+  const handleSaveManualSession = useCallback(
+    async (payload: SaveSessionPayload): Promise<void> => {
+      await saveManualSession(payload);
+    },
+    [saveManualSession],
+  );
+
+  /**
+   * Renombra una sesión guardada y persiste el cambio en localStorage.
+   */
+  const handleRenameSession = useCallback(
+    async (sessionId: string, customName: string): Promise<void> => {
+      await renameSession(sessionId, customName);
+    },
+    [renameSession],
+  );
 
   /**
    * Abre el reporte PDF de las sesiones seleccionadas en una pestaña nueva.
@@ -309,6 +329,8 @@ export default function App(): React.JSX.Element {
             sessions={savedSessions}
             onDeleteSession={handleDeleteSession}
             onDeleteAllSessions={handleDeleteAllSessions}
+            onRenameSession={handleRenameSession}
+            onSaveManualSession={handleSaveManualSession}
             onOpenSessionsPdf={handleOpenSessionsPdf}
             onDownloadSessionsPdf={handleDownloadSessionsPdf}
           />

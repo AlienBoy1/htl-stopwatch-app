@@ -82,6 +82,68 @@
   }
 }
 
+@keyframes session-name-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes session-name-success {
+  0% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0.45);
+  }
+
+  40% {
+    box-shadow: 0 0 0 6px rgb(16 185 129 / 0.2);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0);
+  }
+}
+
+@keyframes manual-cycle-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes manual-cycle-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes manual-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @layer utilities {
   .sr-only {
     position: absolute;
@@ -105,5 +167,25 @@
 
   .animate-splash-ring-reverse {
     animation: splash-ring-reverse 2s linear infinite;
+  }
+
+  .animate-session-name-success {
+    animation: session-name-success 0.65s ease-out forwards;
+  }
+
+  .animate-session-name-enter {
+    animation: session-name-enter 0.28s ease-out forwards;
+  }
+
+  .animate-manual-cycle-enter {
+    animation: manual-cycle-enter 0.32s ease-out forwards;
+  }
+
+  .animate-manual-cycle-exit {
+    animation: manual-cycle-exit 0.22s ease-in forwards;
+  }
+
+  .animate-manual-dialog-enter {
+    animation: manual-dialog-enter 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 }

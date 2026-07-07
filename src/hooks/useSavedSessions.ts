@@ -18,12 +18,20 @@ import {
   loadSavedSessions,
   persistSavedSessions,
 } from '../utils/savedSessionStorage';
-import { resolveSessionName } from '../utils/sessionNaming';
+import { resolveSessionName, normalizeRenamedSessionName } from '../utils/sessionNaming';
 import { buildSessionSummary } from '../utils/sessionSummary';
+
+/** Duración mínima visible del estado de guardado al renombrar (feedback UX). */
+const RENAME_FEEDBACK_MS = 380;
+
+/** Duración mínima visible del guardado de sesión manual (feedback UX). */
+const MANUAL_SAVE_FEEDBACK_MS = 480;
 
 export interface UseSavedSessionsReturn {
   readonly savedSessions: readonly SavedSession[];
   readonly saveSession: (payload: SaveSessionPayload) => SavedSession;
+  readonly saveManualSession: (payload: SaveSessionPayload) => Promise<SavedSession>;
+  readonly renameSession: (sessionId: string, customName: string) => Promise<void>;
   readonly deleteSession: (sessionId: string) => void;
   readonly deleteAllSessions: () => void;
 }
@@ -66,6 +74,54 @@ export function useSavedSessions(): UseSavedSessionsReturn {
   );
 
   /**
+   * Persiste una sesión creada manualmente con el mismo formato que una medida en vivo.
+   */
+  const saveManualSession = useCallback(
+    async (payload: SaveSessionPayload): Promise<SavedSession> => {
+      const saved = saveSession(payload);
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, MANUAL_SAVE_FEEDBACK_MS);
+      });
+
+      return saved;
+    },
+    [saveSession],
+  );
+
+  /**
+   * Renombra una sesión persistida conservando su número secuencial original.
+   */
+  const renameSession = useCallback(
+    async (sessionId: string, customName: string): Promise<void> => {
+      const session = savedSessions.find((item) => item.id === sessionId);
+
+      if (session === undefined) {
+        throw new Error('SESSION_NOT_FOUND');
+      }
+
+      const nextName = normalizeRenamedSessionName(
+        customName,
+        session.sessionNumber,
+      );
+
+      if (nextName !== session.name) {
+        const updatedSessions = savedSessions.map((item) =>
+          item.id === sessionId ? { ...item, name: nextName } : item,
+        );
+
+        setSavedSessions(updatedSessions);
+        persistSavedSessions(updatedSessions);
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, RENAME_FEEDBACK_MS);
+      });
+    },
+    [savedSessions],
+  );
+
+  /**
    * Elimina una sesión guardada por su identificador único.
    */
   const deleteSession = useCallback(
@@ -90,6 +146,8 @@ export function useSavedSessions(): UseSavedSessionsReturn {
   return {
     savedSessions,
     saveSession,
+    saveManualSession,
+    renameSession,
     deleteSession,
     deleteAllSessions,
   };

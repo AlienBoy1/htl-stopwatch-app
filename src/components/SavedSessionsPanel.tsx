@@ -7,6 +7,8 @@
  * - Renderizar nombre, fecha y totales de cada sesión persistida.
  * - Permitir selección múltiple para abrir o descargar reportes PDF de ciclos.
  * - Gestionar eliminación individual o total sin acceder al localStorage del navegador.
+ * - Permitir renombrar sesiones guardadas con edición inline animada.
+ * - Abrir registro manual de sesiones con ciclos editables.
  *
  * Rol en la arquitectura: Componente de consulta y gestión de historial persistido.
  */
@@ -16,18 +18,23 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
+  ClipboardPenLine,
   ExternalLink,
   FileDown,
   Trash2,
 } from 'lucide-react';
-import type { SavedSession } from '../types/timer.types';
+import type { SaveSessionPayload, SavedSession } from '../types/timer.types';
 import { formatElapsedTime, formatTableTime } from '../utils/timeFormatter';
 import { Button } from './ui/Button';
+import { ManualSessionDialog } from './ManualSessionDialog';
+import { SessionNameField } from './SessionNameField';
 
 export interface SavedSessionsPanelProps {
   readonly sessions: readonly SavedSession[];
   readonly onDeleteSession: (sessionId: string) => void;
   readonly onDeleteAllSessions: () => void;
+  readonly onRenameSession: (sessionId: string, customName: string) => Promise<void>;
+  readonly onSaveManualSession: (payload: SaveSessionPayload) => Promise<void>;
   readonly onOpenSessionsPdf: (sessions: readonly SavedSession[]) => Promise<void>;
   readonly onDownloadSessionsPdf: (sessions: readonly SavedSession[]) => Promise<void>;
 }
@@ -36,6 +43,7 @@ interface SavedSessionCardProps {
   readonly session: SavedSession;
   readonly isSelected: boolean;
   readonly onToggleSelect: (sessionId: string) => void;
+  readonly onRename: (sessionId: string, customName: string) => Promise<void>;
   readonly onDelete: (sessionId: string) => void;
 }
 
@@ -96,6 +104,7 @@ function SavedSessionCard({
   session,
   isSelected,
   onToggleSelect,
+  onRename,
   onDelete,
 }: SavedSessionCardProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -106,6 +115,10 @@ function SavedSessionCard({
 
   const handleDelete = (): void => {
     onDelete(session.id);
+  };
+
+  const handleToggleExpanded = (): void => {
+    setIsExpanded((previous) => !previous);
   };
 
   return (
@@ -128,54 +141,65 @@ function SavedSessionCard({
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => setIsExpanded((previous) => !previous)}
-          className="flex min-w-0 flex-1 items-start gap-3 rounded-xl p-2 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40 sm:p-3"
-          aria-expanded={isExpanded}
-        >
+        <div className="flex min-w-0 flex-1 items-start gap-3 p-2 sm:p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
             <Archive className="h-5 w-5" aria-hidden="true" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
-              {session.name}
-            </p>
+            <SessionNameField
+              sessionId={session.id}
+              name={session.name}
+              sessionNumber={session.sessionNumber}
+              onRename={onRename}
+            />
+
             <p className="mt-0.5 text-xs text-zinc-500">
               {formatSavedDate(session.savedAt)}
             </p>
 
-            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <dt className="text-zinc-500">Tiempo</dt>
-                <dd className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">
-                  {formatElapsedTime(session.summary.totalSessionTimeMs)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Ciclos</dt>
-                <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  {session.summary.totalCycles}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Cajas</dt>
-                <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  {session.summary.totalBoxes}
-                </dd>
-              </div>
-            </dl>
+            <button
+              type="button"
+              onClick={handleToggleExpanded}
+              className="mt-3 w-full rounded-xl text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+              aria-expanded={isExpanded}
+            >
+              <dl className="grid grid-cols-3 gap-2 px-1 text-xs">
+                <div>
+                  <dt className="text-zinc-500">Tiempo</dt>
+                  <dd className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">
+                    {formatElapsedTime(session.summary.totalSessionTimeMs)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-zinc-500">Ciclos</dt>
+                  <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
+                    {session.summary.totalCycles}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-zinc-500">Cajas</dt>
+                  <dd className="font-semibold text-zinc-800 dark:text-zinc-200">
+                    {session.summary.totalBoxes}
+                  </dd>
+                </div>
+              </dl>
+            </button>
           </div>
 
-          <span className="shrink-0 self-center text-zinc-400" aria-hidden="true">
+          <button
+            type="button"
+            onClick={handleToggleExpanded}
+            className="shrink-0 self-center rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            aria-label={isExpanded ? 'Contraer detalle de ciclos' : 'Expandir detalle de ciclos'}
+          >
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5" />
+              <ChevronUp className="h-5 w-5" aria-hidden="true" />
             ) : (
-              <ChevronDown className="h-5 w-5" />
+              <ChevronDown className="h-5 w-5" aria-hidden="true" />
             )}
-          </span>
-        </button>
+          </button>
+        </div>
 
         <IconButton
           label={`Eliminar sesión ${session.name}`}
@@ -216,10 +240,13 @@ export function SavedSessionsPanel({
   sessions,
   onDeleteSession,
   onDeleteAllSessions,
+  onRenameSession,
+  onSaveManualSession,
   onOpenSessionsPdf,
   onDownloadSessionsPdf,
 }: SavedSessionsPanelProps): React.JSX.Element {
   const hasSessions = sessions.length > 0;
+  const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<readonly string[]>(
     [],
   );
@@ -299,6 +326,20 @@ export function SavedSessionsPanel({
           Sesiones guardadas
         </h2>
 
+        <button
+          type="button"
+          onClick={() => setIsManualDialogOpen(true)}
+          className={[
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
+            'bg-indigo-500/15 text-indigo-700 hover:bg-indigo-500/25',
+            'dark:bg-indigo-500/20 dark:text-indigo-300 dark:hover:bg-indigo-500/30',
+            hasSessions ? '' : 'ml-auto',
+          ].join(' ')}
+        >
+          <ClipboardPenLine className="h-3.5 w-3.5" aria-hidden="true" />
+          Sesión manual
+        </button>
+
         {hasSessions && (
           <>
             <span className="rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -326,10 +367,22 @@ export function SavedSessionsPanel({
 
       <div className="p-4 sm:p-6">
         {!hasSessions ? (
-          <p className="py-6 text-center text-sm text-zinc-500">
-            Aún no hay sesiones guardadas. Finaliza un cronómetro y pulsa
-            &quot;Guardar sesión&quot;.
-          </p>
+          <div className="py-6 text-center">
+            <p className="text-sm text-zinc-500">
+              Aún no hay sesiones guardadas. Finaliza un cronómetro y pulsa
+              &quot;Guardar sesión&quot;, o registra una sesión manualmente.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="mt-4"
+              leadingIcon={<ClipboardPenLine className="h-5 w-5" />}
+              onClick={() => setIsManualDialogOpen(true)}
+            >
+              Registrar sesión manual
+            </Button>
+          </div>
         ) : (
           <>
             <ul className="space-y-3">
@@ -339,6 +392,7 @@ export function SavedSessionsPanel({
                   session={session}
                   isSelected={selectedSessionIds.includes(session.id)}
                   onToggleSelect={handleToggleSelect}
+                  onRename={onRenameSession}
                   onDelete={onDeleteSession}
                 />
               ))}
@@ -386,6 +440,13 @@ export function SavedSessionsPanel({
           </>
         )}
       </div>
+
+      <ManualSessionDialog
+        isOpen={isManualDialogOpen}
+        existingSessionCount={sessions.length}
+        onClose={() => setIsManualDialogOpen(false)}
+        onSave={onSaveManualSession}
+      />
     </section>
   );
 }

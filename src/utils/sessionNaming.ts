@@ -29,3 +29,20 @@ export function resolveSessionName(
 
   return `Sesión #${existingSessionCount + 1}`;
 }
+
+/**
+ * Normaliza el nombre al renombrar una sesión ya guardada.
+ * Si el campo queda vacío, restaura el nombre por defecto según su número fijo.
+ */
+export function normalizeRenamedSessionName(
+  customName: string,
+  sessionNumber: number,
+): string {
+  const trimmed = customName.trim();
+
+  if (trimmed.length > 0) {
+    return trimmed.slice(0, 80);
+  }
+
+  return `Sesión #${sessionNumber}`;
+}
